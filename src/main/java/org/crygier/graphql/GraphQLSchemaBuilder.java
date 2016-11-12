@@ -24,10 +24,10 @@ public class GraphQLSchemaBuilder {
     public static final String PAGINATION_REQUEST_PARAM_NAME = "paginationRequest";
     private static final Logger log = LoggerFactory.getLogger(GraphQLSchemaBuilder.class);
 
-    private EntityManager entityManager;
+    private Metamodel metaModel;
 
-    public GraphQLSchemaBuilder(EntityManager entityManager) {
-        this.entityManager = entityManager;
+    public GraphQLSchemaBuilder(Metamodel metaModel) {
+        this.metaModel = metaModel;
     }
 
     public GraphQLSchema getGraphQLSchema() {
@@ -39,8 +39,8 @@ public class GraphQLSchemaBuilder {
 
     private GraphQLObjectType getQueryType() {
         GraphQLObjectType.Builder queryType = GraphQLObjectType.newObject().name("QueryType_JPA").description("All encompassing schema for this JPA environment");
-        queryType.fields(entityManager.getMetamodel().getEntities().stream().filter(this::isNotIgnored).map(this::getQueryFieldDefinition).collect(Collectors.toList()));
-        queryType.fields(entityManager.getMetamodel().getEntities().stream().filter(this::isNotIgnored).map(this::getQueryFieldPageableDefinition).collect(Collectors.toList()));
+        queryType.fields(metaModel.getEntities().stream().filter(this::isNotIgnored).map(this::getQueryFieldDefinition).collect(Collectors.toList()));
+        queryType.fields(metaModel.getEntities().stream().filter(this::isNotIgnored).map(this::getQueryFieldPageableDefinition).collect(Collectors.toList()));
 
         return queryType.build();
     }
@@ -48,9 +48,9 @@ public class GraphQLSchemaBuilder {
     private GraphQLFieldDefinition getQueryFieldDefinition(EntityType<?> entityType) {
         return GraphQLFieldDefinition.newFieldDefinition()
                 .name(entityType.getName())
-                .description(getSchemaDocumentation( entityType.getJavaType()))
+                .description(getSchemaDocumentation(entityType.getJavaType()))
                 .type(new GraphQLList(getObjectType(entityType)))
-                .dataFetcher(new JpaDataFetcher(entityManager, entityType))
+                .dataFetcher(new JpaDataFetcher(entityType))
                 .argument(entityType.getAttributes().stream().filter(this::isValidInput).filter(this::isNotIgnored).map(this::getArgument).collect(Collectors.toList()))
                 .build();
     }
@@ -68,7 +68,7 @@ public class GraphQLSchemaBuilder {
                 .name(entityType.getName() + "Connection")
                 .description("'Connection' request wrapper object for " + entityType.getName() + ".  Use this object in a query to request things like pagination or aggregation in an argument.  Use the 'content' field to request actual fields ")
                 .type(pageType)
-                .dataFetcher(new ExtendedJpaDataFetcher(entityManager, entityType))
+                .dataFetcher(new ExtendedJpaDataFetcher(entityType))
                 .argument(paginationArgument)
                 .build();
     }
