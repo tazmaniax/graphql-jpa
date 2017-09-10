@@ -1,11 +1,12 @@
 package org.crygier.graphql;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import graphql.language.IntValue;
 import graphql.language.StringValue;
 import graphql.schema.Coercing;
 import graphql.schema.GraphQLScalarType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
 import java.text.DateFormat;
