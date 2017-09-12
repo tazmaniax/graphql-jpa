@@ -13,7 +13,7 @@ insert into character (id, name, home_planet, favorite_droid_id, dtype, gender_c
     ('1000', 'Luke Skywalker', 'Tatooine', '2000', 'Human', 0),
     ('1001', 'Darth Vader', 'Tatooine', '2001', 'Human', 0),
     ('1002', 'Han Solo', NULL, NULL, 'Human', 0),
-    ('1003', 'Leia Organa', 'Alderaan', NULL, 'Human', 1),
+    ('1003', 'Leia Organa', 'Alderaan', 2000, 'Human', 1),
     ('1004', 'Wilhuff Tarkin', NULL, NULL, 'Human', 0),
 	('1005', 'Darth Maul', NULL, NULL, 'Human', 0);
 

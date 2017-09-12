@@ -2,6 +2,7 @@ package org.crygier.graphql;
 
 import graphql.language.*;
 import graphql.schema.*;
+import java.lang.reflect.Member;
 
 import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
@@ -12,6 +13,8 @@ import javax.persistence.metamodel.PluralAttribute;
 import javax.persistence.metamodel.SingularAttribute;
 import java.util.*;
 import java.util.stream.Collectors;
+import javax.persistence.ManyToMany;
+import javax.persistence.OneToMany;
 
 public class JpaDataFetcher implements DataFetcher {
 
@@ -43,6 +46,15 @@ public class JpaDataFetcher implements DataFetcher {
 				root.get(it.getName()).getModel() instanceof SingularAttribute ? root.get(it.getName()): root.join(it.getName(), JoinType.LEFT), 
 				environment, it)).collect(Collectors.toList()));
 
+		//if there is a source, this is a nested query, we need to apply the filtering from the parent
+		if (environment.getSource() != null) {
+			Predicate predicate = getPredicateForParent(environment, cb, root);
+		
+			if (predicate != null) {
+				predicates.add(predicate);
+			}
+		}
+		
         query.where(predicates.toArray(new Predicate[predicates.size()]));
 		
         return entityManager.createQuery(query.distinct(true));
@@ -181,4 +193,32 @@ public class JpaDataFetcher implements DataFetcher {
 
         return null;
     }
+
+	private Predicate getPredicateForParent(DataFetchingEnvironment environment, CriteriaBuilder cb, Root root) {
+		
+		Predicate result = null;
+		
+		//get the source, this will be used to filter the query
+		Member member = entityManager.getMetamodel().entity(environment.getSource().getClass()).getAttribute(environment.getFields().get(0).getName()).getJavaMember();
+
+		//TODO: this might need criteria for method as javaField.getAnnotation(OneToMany.class);
+		if (member instanceof java.lang.reflect.Field) {
+			java.lang.reflect.Field javaField = (java.lang.reflect.Field) member;
+
+			OneToMany oneToMany = javaField.getAnnotation(OneToMany.class);
+
+			if (oneToMany != null) {
+				String mappedBy = oneToMany.mappedBy();
+				result = cb.equal(root.get(mappedBy), cb.literal(environment.getSource()));
+			} else {
+				ManyToMany manyToMany = javaField.getAnnotation(ManyToMany.class);
+				
+				if (manyToMany != null) {
+					
+				}
+			}
+		}
+
+		return result;
+	}
 }

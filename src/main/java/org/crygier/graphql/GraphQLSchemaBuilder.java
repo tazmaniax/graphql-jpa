@@ -151,19 +151,19 @@ public class GraphQLSchemaBuilder {
 					attributes.forEach(it -> {
 						arguments.add(GraphQLArgument.newArgument().name(it.getName()).type((GraphQLInputType) getAttributeType(it)).build());
 					});
+					
+					//To do this, the id of the parent would have to be taken into account here so that it actually queries based upon the parent
+					//relationship.  This still retains the n+1 problem though
+					return GraphQLFieldDefinition.newFieldDefinition()
+							.name(attribute.getName())
+							.description(getSchemaDocumentation(attribute.getJavaMember()))
+							.type((GraphQLOutputType) type)
+							.dataFetcher(new JpaDataFetcher(entityManager, foreignType))
+							.argument(arguments)
+							.build();
+					
 				}
-
-				/*
-				//To do this, the id of the parent would have to be taken into account here so that it actually queries based upon the parent
-				//relationship.  This still retains the n+1 problem though
-				return GraphQLFieldDefinition.newFieldDefinition()
-						.name(attribute.getName())
-						.description(getSchemaDocumentation(attribute.getJavaMember()))
-						.type((GraphQLOutputType) type)
-						.dataFetcher(new JpaDataFetcher(entityManager, foreignType))
-						.argument(arguments)
-						.build();
-				*/
+				
             }
 
 			return GraphQLFieldDefinition.newFieldDefinition()

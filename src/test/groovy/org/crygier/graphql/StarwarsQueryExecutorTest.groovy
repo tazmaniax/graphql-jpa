@@ -332,9 +332,9 @@ class StarwarsQueryExecutorTest extends Specification {
         '''
         def expected = [
                 Human: [
-                    [ name: 'Leia Organa', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS] ],
                     [ name: 'Luke Skywalker', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS]],
-                    [ name: 'Han Solo', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS] ]
+                    [ name: 'Han Solo', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS] ],
+                    [ name: 'Leia Organa', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS] ],
                 ]
         ]
 
@@ -428,7 +428,7 @@ class StarwarsQueryExecutorTest extends Specification {
         result == expected;
     }
 
-    def 'Filter @ManyToMany'() {
+    def 'ManyToMany test filter'() {
         given:
         def query = '''
         {
@@ -443,7 +443,7 @@ class StarwarsQueryExecutorTest extends Specification {
         '''
         def expected = [
                 Human: [
-                        [name: 'Luke Skywalker', homePlanet: 'Tatooine', friends: [[name: 'Han Solo'], [name: 'Leia Organa'], [name: 'C-3PO'], [name: 'R2-D2']]]
+                        [name: 'Luke Skywalker', homePlanet: 'Tatooine', friends: [[name: 'Han Solo']]]
                 ]
         ]
 
@@ -495,6 +495,58 @@ class StarwarsQueryExecutorTest extends Specification {
         '''
         def expected = [
                 Human:[]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+
+    def 'OneToMany test'() {
+        given:
+        def query = '''
+        {
+          Droid(name: "C-3PO") {
+            name
+            primaryFunction
+			admirers {
+				name
+			}
+		  }
+        }
+        '''
+        def expected = [
+                Droid: [
+                        [ name: 'C-3PO', primaryFunction: 'Protocol', admirers:[[name: "Luke Skywalker"], [name:"Leia Organa"]]]
+                ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+
+    def 'OneToMany test filter'() {
+        given:
+        def query = '''
+        {
+          Droid(name: "C-3PO") {
+            name
+            primaryFunction
+			admirers(homePlanet: "Tatooine") {
+				name
+			}
+		  }
+        }
+        '''
+        def expected = [
+                Droid: [
+                        [ name: 'C-3PO', primaryFunction: 'Protocol', admirers:[[name: "Luke Skywalker"]]]
+                ]
         ]
 
         when:
