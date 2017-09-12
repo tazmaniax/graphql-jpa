@@ -140,14 +140,38 @@ public class GraphQLSchemaBuilder {
                 attributes.forEach(it -> {
                     arguments.add(GraphQLArgument.newArgument().name(it.getName()).type((GraphQLInputType) getAttributeType(it)).build());
                 });
+			
+            } else if (attribute instanceof PluralAttribute) {
+								
+				//TODO: this is hacky, attempting to prevent "java.lang.ClassCastException: org.hibernate.jpa.internal.metamodel.BasicTypeImpl cannot be cast to javax.persistence.metamodel.EntityType"
+				if (((PluralAttribute) attribute).getElementType() instanceof EntityType) {
+					EntityType foreignType = (EntityType) ((PluralAttribute) attribute).getElementType();
+					Stream<Attribute> attributes = findBasicAttributes(foreignType.getAttributes());
+
+					attributes.forEach(it -> {
+						arguments.add(GraphQLArgument.newArgument().name(it.getName()).type((GraphQLInputType) getAttributeType(it)).build());
+					});
+				}
+
+				/*
+				//To do this, the id of the parent would have to be taken into account here so that it actually queries based upon the parent
+				//relationship.  This still retains the n+1 problem though
+				return GraphQLFieldDefinition.newFieldDefinition()
+						.name(attribute.getName())
+						.description(getSchemaDocumentation(attribute.getJavaMember()))
+						.type((GraphQLOutputType) type)
+						.dataFetcher(new JpaDataFetcher(entityManager, foreignType))
+						.argument(arguments)
+						.build();
+				*/
             }
 
-            return GraphQLFieldDefinition.newFieldDefinition()
-                    .name(attribute.getName())
-                    .description(getSchemaDocumentation(attribute.getJavaMember()))
-                    .type((GraphQLOutputType) type)
-                    .argument(arguments)
-                    .build();
+			return GraphQLFieldDefinition.newFieldDefinition()
+					.name(attribute.getName())
+					.description(getSchemaDocumentation(attribute.getJavaMember()))
+					.type((GraphQLOutputType) type)
+					.argument(arguments)
+					.build();
         }
 
         throw new IllegalArgumentException("Attribute " + attribute + " cannot be mapped as an Output Argument");

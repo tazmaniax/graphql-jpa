@@ -2,7 +2,7 @@ package org.crygier.graphql
 
 import org.crygier.graphql.model.starwars.Episode
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.SpringApplicationContextLoader
+import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Configuration
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.transaction.annotation.Transactional
@@ -10,8 +10,8 @@ import spock.lang.Specification
 
 import javax.persistence.EntityManager
 
-@Configuration
-@ContextConfiguration(loader = SpringApplicationContextLoader, classes = TestApplication)
+//@Configuration
+@SpringBootTest(classes = TestApplication)
 class StarwarsQueryExecutorTest extends Specification {
 
     @Autowired
@@ -356,12 +356,13 @@ class StarwarsQueryExecutorTest extends Specification {
           }
         }
         '''
+		//the resulting order of this query is different based upon join vs fetch
         def expected = [
                 Human: [
                         [ name: 'Darth Vader', gender: [ description: "Male" ] ],
-                        [ name: 'Wilhuff Tarkin', gender: [ description: "Male" ] ],
-                        [ name: 'Han Solo', gender: [ description: "Male" ] ],
                         [ name: 'Luke Skywalker', gender: [ description: "Male" ]],
+                        [ name: 'Han Solo', gender: [ description: "Male" ] ],
+                        [ name: 'Wilhuff Tarkin', gender: [ description: "Male" ] ],
                 ]
         ]
 
@@ -424,6 +425,34 @@ class StarwarsQueryExecutorTest extends Specification {
         then:
         result == expected;
     }
+
+    def 'Filter @ManyToMany'() {
+        given:
+        def query = '''
+        {
+            Human(name: "Luke Skywalker") {
+                name
+                homePlanet
+                friends(name: "Han Solo") {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human: [
+                        [name: 'Luke Skywalker', homePlanet: 'Tatooine', friends: [[name: 'Han Solo'], [name: 'Leia Organa'], [name: 'C-3PO'], [name: 'R2-D2']]]
+                ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	//TODO: Add tests to assert nested fetching
 
     @Autowired
     private EntityManager em;
