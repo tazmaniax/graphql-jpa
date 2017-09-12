@@ -40,7 +40,7 @@ public class JpaDataFetcher implements DataFetcher {
 		//arguments to the top-level field
 		//TODO: this may needs to pass root.fetch for top-level relationships
 		predicates.addAll(field.getArguments().stream().map(it -> getPredicate(cb, 
-				root.get(it.getName()).getModel() instanceof SingularAttribute ? root.get(it.getName()): root.join(it.getName()), 
+				root.get(it.getName()).getModel() instanceof SingularAttribute ? root.get(it.getName()): root.join(it.getName(), JoinType.LEFT), 
 				environment, it)).collect(Collectors.toList()));
 
         query.where(predicates.toArray(new Predicate[predicates.size()]));
@@ -78,14 +78,14 @@ public class JpaDataFetcher implements DataFetcher {
                         SingularAttribute attribute = (SingularAttribute) fieldPath.getModel();
                         if (attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.MANY_TO_ONE || attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.ONE_TO_ONE) {
                             //TODO: we can eagerly fetch TO_ONE associations assuming that the parent was also eagerly fetched
-							//Fetch fetch = from.fetch(selectedField.getName());
-							join = from.join(selectedField.getName());
+							//Fetch fetch = from.fetch(selectedField.getName(), JoinType.LEFT);
+							join = from.join(selectedField.getName(), JoinType.LEFT);
 						}
 						
                     } else { //Otherwise, assume the foreign side is many
 						if (selectedField.getSelectionSet() != null) {
-							//Fetch fetch = from.fetch(selectedField.getName());
-							join = from.join(selectedField.getName());
+							//Fetch fetch = from.fetch(selectedField.getName(), JoinType.LEFT);
+							join = from.join(selectedField.getName(), JoinType.LEFT);
 						}
 					}
 					

@@ -250,7 +250,7 @@ class StarwarsQueryExecutorTest extends Specification {
         def expected = [
                 HumanConnection: [
                         totalPages: 3,
-                        totalElements: 5,
+                        totalElements: 6,
                         content: [
                                 [ name: 'Darth Vader' ],
                                 [ name: 'Luke Skywalker' ]
@@ -279,7 +279,7 @@ class StarwarsQueryExecutorTest extends Specification {
         def expected = [
                 HumanConnection: [
                         totalPages: 3,
-                        totalElements: 5
+                        totalElements: 6
                 ]
         ]
 
@@ -306,7 +306,8 @@ class StarwarsQueryExecutorTest extends Specification {
                     [ name: 'Luke Skywalker', homePlanet: "Tatooine"],
                     [ name: 'Leia Organa', homePlanet: "Alderaan"],
                     [ name: 'Han Solo', homePlanet: null],
-                    [ name: 'Darth Vader', homePlanet: "Tatooine"]
+                    [ name: 'Darth Vader', homePlanet: "Tatooine"],
+                    [ name: 'Darth Maul', homePlanet: null]
                 ]
         ]
 
@@ -360,6 +361,7 @@ class StarwarsQueryExecutorTest extends Specification {
         def expected = [
                 Human: [
                         [ name: 'Darth Vader', gender: [ description: "Male" ] ],
+                        [ name: 'Darth Maul', gender: [ description: "Male" ] ],
                         [ name: 'Luke Skywalker', gender: [ description: "Male" ]],
                         [ name: 'Han Solo', gender: [ description: "Male" ] ],
                         [ name: 'Wilhuff Tarkin', gender: [ description: "Male" ] ],
@@ -443,6 +445,56 @@ class StarwarsQueryExecutorTest extends Specification {
                 Human: [
                         [name: 'Luke Skywalker', homePlanet: 'Tatooine', friends: [[name: 'Han Solo'], [name: 'Leia Organa'], [name: 'C-3PO'], [name: 'R2-D2']]]
                 ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Outer Join Nested Objects'() {
+        given:
+        def query = '''
+        {
+            Human(name: "Darth Maul") {
+                name
+                homePlanet
+                friends {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human: [
+                        [name: 'Darth Maul', homePlanet: null, friends: []]
+                ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Inner Join Nested Objects with Filters'() {
+        given:
+        def query = '''
+        {
+            Human(name: "Darth Maul") {
+                name
+                homePlanet
+                friends(name: "Luke Skywalker") {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human:[]
         ]
 
         when:

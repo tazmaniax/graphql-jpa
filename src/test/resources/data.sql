@@ -14,7 +14,8 @@ insert into character (id, name, home_planet, favorite_droid_id, dtype, gender_c
     ('1001', 'Darth Vader', 'Tatooine', '2001', 'Human', 0),
     ('1002', 'Han Solo', NULL, NULL, 'Human', 0),
     ('1003', 'Leia Organa', 'Alderaan', NULL, 'Human', 1),
-    ('1004', 'Wilhuff Tarkin', NULL, NULL, 'Human', 0);
+    ('1004', 'Wilhuff Tarkin', NULL, NULL, 'Human', 0),
+	('1005', 'Darth Maul', NULL, NULL, 'Human', 0);
 
 -- Luke's friends
 insert into character_friends (source_id, friend_id) values
