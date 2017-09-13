@@ -349,6 +349,34 @@ class StarwarsQueryExecutorTest extends Specification {
         result == expected
     }
 
+    def 'Ordering Fields on Same Object'() {
+        given:
+        def query = '''
+        {
+            Human {
+                homePlanet(orderBy: DESC)
+                name(orderBy: ASC)
+			}
+        }
+        '''
+        def expected = [
+			Human: [
+				[ homePlanet:'Tatooine', name:'Darth Vader' ], 
+				[ homePlanet:'Tatooine', name:'Luke Skywalker' ], 
+				[ homePlanet:'Alderaan', name:'Leia Organa'  ], 
+				[ homePlanet:null, name:'Darth Maul' ], 
+				[ homePlanet:null, name:'Han Solo' ], 
+				[ homePlanet:null, name:'Wilhuff Tarkin' ]
+			]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+
     def 'Query by Collection of Enums at root level'() {
         // Semi-proper JPA: select distinct h from Human h join h.appearsIn ai where ai in (:episodes)
 

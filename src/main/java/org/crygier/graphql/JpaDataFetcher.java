@@ -36,6 +36,10 @@ public class JpaDataFetcher implements DataFetcher {
         CriteriaQuery<Object> query = cb.createQuery((Class) entityType.getJavaType());
         Root root = query.from(entityType);
 		
+		//process the order by for the root before we process any children in getQueryHelper
+        processOrderBy(field, root, query, cb);
+		
+		//recurse through the child fields
 		getQueryHelper(environment, field, cb, query, root, root);
 
 		List<Predicate> predicates = new ArrayList<>();
@@ -56,9 +60,6 @@ public class JpaDataFetcher implements DataFetcher {
 		}
 		
         query.where(predicates.toArray(new Predicate[predicates.size()]));
-		
-		//we can always process the orderBy for the root
-        processOrderBy(field, root, query, cb);
 		
         return entityManager.createQuery(query.distinct(true));
     }
@@ -84,6 +85,7 @@ public class JpaDataFetcher implements DataFetcher {
 						joinType = JoinType.valueOf(((EnumValue) joinTypeArgument.get().getValue()).getName());
 					}
 					
+					boolean fetched = false;
 					Join join = null;
 					
                     // Check if it's an object and the foreign side is One.  Then we can eagerly fetch causing an inner join instead of 2 queries
@@ -92,18 +94,20 @@ public class JpaDataFetcher implements DataFetcher {
                         if (attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.MANY_TO_ONE || attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.ONE_TO_ONE) {
                             //TODO: we can eagerly fetch TO_ONE associations assuming that the parent was also eagerly fetched
 							//Fetch fetch = from.fetch(selectedField.getName(), joinType);
+							//TODO: if we fetch, update the boolean
 							join = from.join(selectedField.getName(), joinType);
 						}
 						
                     } else { //Otherwise, assume the foreign side is many
 						if (selectedField.getSelectionSet() != null) {
 							//Fetch fetch = from.fetch(selectedField.getName(), joinType);
+							//TODO: if we fetch, update the boolean
 							join = from.join(selectedField.getName(), joinType);
 						}
 					}
 					
 					//Let's assume that we can eventually figure out when to fetch (taking nesting into account) and when not to
-					if (join instanceof Fetch) {
+					if (fetched) {
 						//it's safe to process the ordering for this instances children
 						processOrderBy(selectedField, join, query, cb);
 					}
@@ -262,10 +266,21 @@ public class JpaDataFetcher implements DataFetcher {
 					// Process the orderBy clause - orderBy can only be processed for fields actually being returned, but this should be smart enough to account for fetches
 					Optional<Argument> orderByArgument = selectedField.getArguments().stream().filter(it -> "orderBy".equals(it.getName())).findFirst();
 					if (orderByArgument.isPresent()) {
-						if ("DESC".equals(((EnumValue) orderByArgument.get().getValue()).getName()))
-							query.orderBy(cb.desc(fieldPath));
-						else
-							query.orderBy(cb.asc(fieldPath));
+						
+						List<Order> orders = new ArrayList<>();
+						
+						//add the previous ordering first so that it is retained
+						if (query.getOrderList() != null) {
+							orders.addAll(query.getOrderList());
+						}
+						
+						if ("DESC".equals(((EnumValue) orderByArgument.get().getValue()).getName())) {
+							orders.add(cb.desc(fieldPath));
+						} else {
+							orders.add(cb.asc(fieldPath));
+						}
+						
+						query.orderBy(orders);
 					}
 				}
 			}
