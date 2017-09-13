@@ -48,7 +48,7 @@ public class JpaDataFetcher implements DataFetcher {
 
 		//if there is a source, this is a nested query, we need to apply the filtering from the parent
 		if (environment.getSource() != null) {
-			Predicate predicate = getPredicateForParent(environment, cb, root);
+			Predicate predicate = getPredicateForParent(environment, cb, root, query);
 		
 			if (predicate != null) {
 				predicates.add(predicate);
@@ -194,7 +194,7 @@ public class JpaDataFetcher implements DataFetcher {
         return null;
     }
 
-	private Predicate getPredicateForParent(DataFetchingEnvironment environment, CriteriaBuilder cb, Root root) {
+	private Predicate getPredicateForParent(DataFetchingEnvironment environment, CriteriaBuilder cb, Root root, CriteriaQuery query) {
 		
 		Predicate result = null;
 		
@@ -214,7 +214,18 @@ public class JpaDataFetcher implements DataFetcher {
 				ManyToMany manyToMany = javaField.getAnnotation(ManyToMany.class);
 				
 				if (manyToMany != null) {
-					
+					/* Since the @ManyToMany only needs to be defined one side we can't assume that this side has a clean mapping
+					 * back to the parent.  The tests provide a good example of this (C-3PO is not one of Han's friends, even though
+					 * C-3PO considers Han a friend.
+					 *
+					 * This link provides guidance: https://stackoverflow.com/questions/4483576/jpa-2-0-criteria-api-subqueries-in-expressions
+					 */
+					Subquery subQuery = query.subquery(root.getJavaType());
+					Root subQueryRoot = subQuery.from(environment.getSource().getClass());
+					subQuery.where(cb.equal(subQueryRoot, cb.literal(environment.getSource())));
+					Join subQueryJoin = subQueryRoot.join(environment.getFields().get(0).getName());
+					subQuery.select(subQueryJoin);
+					result = root.in(subQuery);
 				}
 			}
 		}

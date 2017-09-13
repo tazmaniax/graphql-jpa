@@ -104,7 +104,7 @@ class StarwarsQueryExecutorTest extends Specification {
         '''
         def expected = [
                 Human: [
-                        [name: 'Luke Skywalker', homePlanet: 'Tatooine', friends: [[name: 'Han Solo'], [name: 'Leia Organa'], [name: 'C-3PO'], [name: 'R2-D2']]]
+                        [name: 'Luke Skywalker', homePlanet: 'Tatooine', friends: [[name: 'C-3PO'], [name: 'Leia Organa'], [name: 'Han Solo'], [name: 'R2-D2']]]
                 ]
         ]
 
@@ -219,9 +219,9 @@ class StarwarsQueryExecutorTest extends Specification {
                         [
                                 name:'R2-D2',
                                 friends:[
-                                        [ name:'Luke Skywalker', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[['name:Han Solo'], [name:'Leia Organa'], [name:'C-3PO'], [name:'R2-D2']]],
-                                        [ name:'Han Solo', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'Luke Skywalker'], [name:'Leia Organa'], [name:'R2-D2']]],
-                                        [ name:'Leia Organa', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'Luke Skywalker'], [name:'Han Solo'], [name:'C-3PO'], [name:'R2-D2']]]
+                                        [ name:'Luke Skywalker', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'C-3PO'], [name:'Leia Organa'], ['name:Han Solo'], [name:'R2-D2']]],
+                                        [ name:'Han Solo', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'Leia Organa'], [name:'Luke Skywalker'], [name:'R2-D2']]],
+                                        [ name:'Leia Organa', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'C-3PO'], [name:'Luke Skywalker'], [name:'Han Solo'], [name:'R2-D2']]]
                                 ]
                         ]
                 ]
