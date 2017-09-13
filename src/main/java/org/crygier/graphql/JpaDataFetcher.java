@@ -41,10 +41,10 @@ public class JpaDataFetcher implements DataFetcher {
 		getQueryHelper(environment, field, cb, query, root, root, predicates);
 
 		//arguments to the top-level field
-		//TODO: this may needs to pass root.fetch for top-level relationships
-		predicates.addAll(field.getArguments().stream().map(it -> getPredicate(cb, 
-				root.get(it.getName()).getModel() instanceof SingularAttribute ? root.get(it.getName()): root.join(it.getName(), JoinType.LEFT), 
-				environment, it)).collect(Collectors.toList()));
+		predicates.addAll(field.getArguments().stream()
+				.filter(it -> (!"orderBy".equals(it.getName()) && !"joinType".equals(it.getName())))
+				.map(it -> getPredicate(cb, getRootArgumentPath(root, it), environment, it))
+				.collect(Collectors.toList()));
 
 		//if there is a source, this is a nested query, we need to apply the filtering from the parent
 		if (environment.getSource() != null) {
@@ -59,6 +59,11 @@ public class JpaDataFetcher implements DataFetcher {
 		
         return entityManager.createQuery(query.distinct(true));
     }
+
+	private Path getRootArgumentPath(Root root, Argument it) {
+		//This only needs to the join case when we're querying by an ENUM, otherwise the arguments will be "primitive" values
+		return root.get(it.getName()).getModel() instanceof SingularAttribute ? root.get(it.getName()): root.join(it.getName(), JoinType.LEFT);
+	}
 	
 	protected void getQueryHelper(DataFetchingEnvironment environment, Field field, 
 			CriteriaBuilder cb, CriteriaQuery<Object> query, From from, Path path, List<Predicate> predicates) {
@@ -83,6 +88,14 @@ public class JpaDataFetcher implements DataFetcher {
                             query.orderBy(cb.asc(fieldPath));
                     }
 
+					//make left joins the default
+					JoinType joinType = JoinType.LEFT;
+					
+					Optional<Argument> joinTypeArgument = selectedField.getArguments().stream().filter(it -> "joinType".equals(it.getName())).findFirst();
+                    if (joinTypeArgument.isPresent()) {
+						joinType = JoinType.valueOf(((EnumValue) joinTypeArgument.get().getValue()).getName());
+					}
+					
 					Join join = null;
 					
                     // Check if it's an object and the foreign side is One.  Then we can eagerly fetch causing an inner join instead of 2 queries
@@ -90,14 +103,14 @@ public class JpaDataFetcher implements DataFetcher {
                         SingularAttribute attribute = (SingularAttribute) fieldPath.getModel();
                         if (attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.MANY_TO_ONE || attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.ONE_TO_ONE) {
                             //TODO: we can eagerly fetch TO_ONE associations assuming that the parent was also eagerly fetched
-							//Fetch fetch = from.fetch(selectedField.getName(), JoinType.LEFT);
-							join = from.join(selectedField.getName(), JoinType.LEFT);
+							//Fetch fetch = from.fetch(selectedField.getName(), joinType);
+							join = from.join(selectedField.getName(), joinType);
 						}
 						
                     } else { //Otherwise, assume the foreign side is many
 						if (selectedField.getSelectionSet() != null) {
-							//Fetch fetch = from.fetch(selectedField.getName(), JoinType.LEFT);
-							join = from.join(selectedField.getName(), JoinType.LEFT);
+							//Fetch fetch = from.fetch(selectedField.getName(), joinType);
+							join = from.join(selectedField.getName(), joinType);
 						}
 					}
 					
@@ -105,12 +118,20 @@ public class JpaDataFetcher implements DataFetcher {
 						final Join forLambda = (Join) join;
 						
 						getQueryHelper(environment, selectedField, cb, query, ((From)forLambda), ((Join) forLambda), predicates);
-							
-						predicates.addAll(selectedField.getArguments().stream()
-							.filter(it -> !"orderBy".equals(it.getName()))
+						
+						List<Predicate> joinPredicates = selectedField.getArguments().stream()
+							.filter(it -> (!"orderBy".equals(it.getName()) && !"joinType".equals(it.getName())))
 							.map(it -> new Argument(it.getName(), it.getValue()))
 							.collect(Collectors.toList())
-							.stream().map(it -> getPredicate(cb, ((Join) forLambda).get(it.getName()), environment, it)).collect(Collectors.toList()));
+							.stream().map(it -> getPredicate(cb, ((Join) forLambda).get(it.getName()), environment, it)).collect(Collectors.toList());
+						
+						// don't blow away an existing condition
+						if (forLambda.getOn() != null) {
+							joinPredicates.add(forLambda.getOn());
+						}
+						
+						//add the predicates to the on to faciliate outer joins
+						forLambda.on(joinPredicates.toArray(EMPTY_PREDICATES));
 					}
                 }
             }
@@ -232,4 +253,6 @@ public class JpaDataFetcher implements DataFetcher {
 
 		return result;
 	}
+	
+	private static final Predicate[] EMPTY_PREDICATES = {};
 }

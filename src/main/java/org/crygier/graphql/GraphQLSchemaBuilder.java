@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.persistence.criteria.JoinType;
 
 public class GraphQLSchemaBuilder {
 
@@ -131,6 +132,7 @@ public class GraphQLSchemaBuilder {
         if (type instanceof GraphQLOutputType) {
             List<GraphQLArgument> arguments = new ArrayList<>();
             arguments.add(GraphQLArgument.newArgument().name("orderBy").type(orderByDirectionEnum).build());            // Always add the orderBy argument
+			arguments.add(GraphQLArgument.newArgument().name("joinType").type(joinTypeEnum).build());            // Always add the joinType argument
 
             // Get the fields that can be queried on (i.e. Simple Types, no Sub-Objects)
             if (attribute instanceof SingularAttribute && attribute.getPersistentAttributeType() != Attribute.PersistentAttributeType.BASIC) {
@@ -325,5 +327,12 @@ public class GraphQLSchemaBuilder {
                     .value("DESC", 1, "Descending")
                     .build();
 
-
+	private static final GraphQLEnumType joinTypeEnum =
+            GraphQLEnumType.newEnum()
+                    .name("joinType")
+                    .description("Describes the join type for relating fields")
+                    .value(JoinType.INNER.name(), JoinType.INNER.ordinal(), JoinType.INNER.toString())
+                    .value(JoinType.LEFT.name(), JoinType.LEFT.ordinal(), JoinType.LEFT.toString())
+                    .value(JoinType.RIGHT.name(), JoinType.RIGHT.ordinal(), JoinType.RIGHT.toString())
+                    .build();
 }

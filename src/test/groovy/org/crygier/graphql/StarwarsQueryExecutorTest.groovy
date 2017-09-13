@@ -321,6 +321,9 @@ class StarwarsQueryExecutorTest extends Specification {
     def 'Query by Collection of Enums at root level'() {
         // Semi-proper JPA: select distinct h from Human h join h.appearsIn ai where ai in (:episodes)
 
+		//This test raises an inconsistency, for other "associations", the filter will be on the appearsIn field itself
+		//Additionally, taking the nested filtering into account, only the specific Episode would be returned in appearsIn, not all of them
+		
         given:
         def query = '''
         {
@@ -347,11 +350,15 @@ class StarwarsQueryExecutorTest extends Specification {
 
     def 'Query by restricting sub-object'() {
         given:
+		
+		//since gender is mapped as an association, the (new) default behavior of outer joins will cause all humans to be
+		//returned regardless of their gender.  To only return the Men, we have to make gender an inner join.
+		
         def query = '''
         {
           Human {
             name
-            gender(code: "Male") {
+            gender(joinType: INNER, code: "Male") {
               description
             }
           }
@@ -454,7 +461,7 @@ class StarwarsQueryExecutorTest extends Specification {
         result == expected
     }
 	
-	def 'Outer Join Nested Objects'() {
+	def 'Outer Join Nested Objects by Default'() {
         given:
         def query = '''
         {
@@ -480,7 +487,33 @@ class StarwarsQueryExecutorTest extends Specification {
         result == expected
     }
 	
-	def 'Inner Join Nested Objects with Filters'() {
+	def 'Inner Join Nested Objects'() {
+        given:
+        def query = '''
+        {
+            Human(name: "Darth Maul") {
+                name
+                homePlanet
+                friends (joinType: INNER)  {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human: []
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Outer Join Nested Objects with Filters'() {
+		//the idea is that since friends is a left join, the filter criteria should be applied to the join, not the where
+		
         given:
         def query = '''
         {
@@ -488,6 +521,32 @@ class StarwarsQueryExecutorTest extends Specification {
                 name
                 homePlanet
                 friends(name: "Luke Skywalker") {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human: [
+                        [name: 'Darth Maul', homePlanet: null, friends: []]
+                ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Inner Join Nested Objects with Filters'() {
+        given:
+        def query = '''
+        {
+            Human(name: "Darth Maul") {
+                name
+                homePlanet
+                friends(joinType: INNER, name: "Luke Skywalker") {
                     name
                 }
             }
