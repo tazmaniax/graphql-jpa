@@ -35,10 +35,10 @@ public class JpaDataFetcher implements DataFetcher {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Object> query = cb.createQuery((Class) entityType.getJavaType());
         Root root = query.from(entityType);
+		
+		getQueryHelper(environment, field, cb, query, root, root);
 
 		List<Predicate> predicates = new ArrayList<>();
-		
-		getQueryHelper(environment, field, cb, query, root, root, predicates);
 
 		//arguments to the top-level field
 		predicates.addAll(field.getArguments().stream()
@@ -57,16 +57,14 @@ public class JpaDataFetcher implements DataFetcher {
 		
         query.where(predicates.toArray(new Predicate[predicates.size()]));
 		
+		//we can always process the orderBy for the root
+        processOrderBy(field, root, query, cb);
+		
         return entityManager.createQuery(query.distinct(true));
     }
-
-	private Path getRootArgumentPath(Root root, Argument it) {
-		//This only needs to the join case when we're querying by an ENUM, otherwise the arguments will be "primitive" values
-		return root.get(it.getName()).getModel() instanceof SingularAttribute ? root.get(it.getName()): root.join(it.getName(), JoinType.LEFT);
-	}
 	
 	protected void getQueryHelper(DataFetchingEnvironment environment, Field field, 
-			CriteriaBuilder cb, CriteriaQuery<Object> query, From from, Path path, List<Predicate> predicates) {
+			CriteriaBuilder cb, CriteriaQuery<Object> query, From from, Path path) {
 		
 		// Loop through all of the fields being requested
         field.getSelectionSet().getSelections().forEach(selection -> {
@@ -77,16 +75,6 @@ public class JpaDataFetcher implements DataFetcher {
                 if(!"__typename".equals(selectedField.getName())) {
 
                     Path fieldPath = path.get(selectedField.getName());
-
-                    // Process the orderBy clause
-					//TODO: this isn't going to handle nested orderBy fields properly
-                    Optional<Argument> orderByArgument = selectedField.getArguments().stream().filter(it -> "orderBy".equals(it.getName())).findFirst();
-                    if (orderByArgument.isPresent()) {
-                        if ("DESC".equals(((EnumValue) orderByArgument.get().getValue()).getName()))
-                            query.orderBy(cb.desc(fieldPath));
-                        else
-                            query.orderBy(cb.asc(fieldPath));
-                    }
 
 					//make left joins the default
 					JoinType joinType = JoinType.LEFT;
@@ -114,10 +102,16 @@ public class JpaDataFetcher implements DataFetcher {
 						}
 					}
 					
+					//Let's assume that we can eventually figure out when to fetch (taking nesting into account) and when not to
+					if (join instanceof Fetch) {
+						//it's safe to process the ordering for this instances children
+						processOrderBy(selectedField, join, query, cb);
+					}
+					
 					if (join != null) {
 						final Join forLambda = (Join) join;
 						
-						getQueryHelper(environment, selectedField, cb, query, ((From)forLambda), ((Join) forLambda), predicates);
+						getQueryHelper(environment, selectedField, cb, query, ((From)forLambda), ((Join) forLambda));
 						
 						List<Predicate> joinPredicates = selectedField.getArguments().stream()
 							.filter(it -> (!"orderBy".equals(it.getName()) && !"joinType".equals(it.getName())))
@@ -252,6 +246,35 @@ public class JpaDataFetcher implements DataFetcher {
 		}
 
 		return result;
+	}
+
+	private void processOrderBy(Field field, Path path, CriteriaQuery<Object> query, CriteriaBuilder cb) {
+		// Loop through this fields selections and apply the ordering
+		field.getSelectionSet().getSelections().forEach(selection -> {
+			if (selection instanceof Field) {
+				Field selectedField = (Field) selection;
+				
+				// "__typename" is part of the graphql introspection spec and has to be ignored by jpa
+				if(!"__typename".equals(selectedField.getName())) {
+					
+					Path fieldPath = path.get(selectedField.getName());
+					
+					// Process the orderBy clause - orderBy can only be processed for fields actually being returned, but this should be smart enough to account for fetches
+					Optional<Argument> orderByArgument = selectedField.getArguments().stream().filter(it -> "orderBy".equals(it.getName())).findFirst();
+					if (orderByArgument.isPresent()) {
+						if ("DESC".equals(((EnumValue) orderByArgument.get().getValue()).getName()))
+							query.orderBy(cb.desc(fieldPath));
+						else
+							query.orderBy(cb.asc(fieldPath));
+					}
+				}
+			}
+		});
+	}
+
+	private Path getRootArgumentPath(Root root, Argument it) {
+		//This only needs to the join case when we're querying by an ENUM, otherwise the arguments will be "primitive" values
+		return root.get(it.getName()).getModel() instanceof SingularAttribute ? root.get(it.getName()): root.join(it.getName(), JoinType.LEFT);
 	}
 	
 	private static final Predicate[] EMPTY_PREDICATES = {};

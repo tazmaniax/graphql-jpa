@@ -318,6 +318,37 @@ class StarwarsQueryExecutorTest extends Specification {
         result == expected
     }
 
+    def 'Ordering Nested Fields'() {
+        given:
+        def query = '''
+        {
+            Human {
+                name(orderBy: ASC)
+                homePlanet
+				friends {
+					name(orderBy: DESC)
+	            }
+			}
+        }
+        '''
+        def expected = [
+			Human: [
+				[ name:'Darth Maul', homePlanet:null, friends:[] ], 
+				[ name:'Darth Vader', homePlanet:'Tatooine', friends:[[name:'Wilhuff Tarkin']] ], 
+				[ name:'Han Solo', homePlanet:null, friends:[[name:'R2-D2'], [name:'Luke Skywalker'], [name:'Leia Organa']] ], 
+				[ name:'Leia Organa', homePlanet:'Alderaan', friends:[[name:'R2-D2'], [name:'Luke Skywalker'], [name:'Han Solo'], [name:'C-3PO']] ], 
+				[ name:'Luke Skywalker', homePlanet:'Tatooine', friends:[[name:'R2-D2'], [name:'Leia Organa'], [name:'Han Solo'], [name:'C-3PO']] ], 
+				[ name:'Wilhuff Tarkin', homePlanet:null, friends:[[name:'Darth Vader']] ]
+			]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+
     def 'Query by Collection of Enums at root level'() {
         // Semi-proper JPA: select distinct h from Human h join h.appearsIn ai where ai in (:episodes)
 
