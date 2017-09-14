@@ -62,7 +62,7 @@ class ThingQueryExecutorTest extends Specification {
     def 'Query with parameter'() {
         given:
         def query = '''
-       query ThingByIdQuery($id: UUID) {
+       query ThingByIdQuery($id: [UUID]) {
           Thing(id: $id) {
             id
             type

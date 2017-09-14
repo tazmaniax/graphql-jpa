@@ -104,7 +104,7 @@ public class GraphQLSchemaBuilder {
         if (type instanceof GraphQLInputType) {
             return GraphQLArgument.newArgument()
                     .name(attribute.getName())
-                    .type((GraphQLInputType) type)
+                    .type((GraphQLInputType) new GraphQLList(type))
                     .build();
         }
 
@@ -140,7 +140,7 @@ public class GraphQLSchemaBuilder {
                 Stream<Attribute> attributes = findBasicAttributes(foreignType.getAttributes());
 
                 attributes.forEach(it -> {
-                    arguments.add(GraphQLArgument.newArgument().name(it.getName()).type((GraphQLInputType) getAttributeType(it)).build());
+                    arguments.add(getArgument(it));
                 });
 			
             } else if (attribute instanceof PluralAttribute) {
@@ -151,7 +151,7 @@ public class GraphQLSchemaBuilder {
 					Stream<Attribute> attributes = findBasicAttributes(foreignType.getAttributes());
 
 					attributes.forEach(it -> {
-						arguments.add(GraphQLArgument.newArgument().name(it.getName()).type((GraphQLInputType) getAttributeType(it)).build());
+						arguments.add(getArgument(it));
 					});
 					
 					//To do this, the id of the parent would have to be taken into account here so that it actually queries based upon the parent

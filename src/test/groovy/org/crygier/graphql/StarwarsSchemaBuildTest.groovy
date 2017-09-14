@@ -1,6 +1,7 @@
 package org.crygier.graphql
 
 import graphql.Scalars
+import graphql.schema.GraphQLList;
 import graphql.schema.GraphQLSchema
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -24,6 +25,9 @@ class StarwarsSchemaBuildTest extends Specification {
     }
 
     def 'Correctly derives the schema from Given Entities'() {
+		given:
+		def type = new GraphQLList(Scalars.GraphQLString)
+		
         when:
         GraphQLSchema schema = builder.getGraphQLSchema();
 
@@ -35,7 +39,7 @@ class StarwarsSchemaBuildTest extends Specification {
 
         then:   "Ensure Subobjects may be queried upon"
         schema.getQueryType().getFieldDefinition("CodeList").getArguments().size() == 6
-        schema.getQueryType().getFieldDefinition("CodeList").getArgument("code").getType() == Scalars.GraphQLString
+        schema.getQueryType().getFieldDefinition("CodeList").getArgument("code").getType() == type
     }
 
 }

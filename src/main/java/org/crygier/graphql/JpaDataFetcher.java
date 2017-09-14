@@ -139,11 +139,13 @@ public class JpaDataFetcher implements DataFetcher {
 
 	private Predicate getPredicate(CriteriaBuilder cb, Path path, DataFetchingEnvironment environment, Argument argument) {
             
-			// If the argument is a list, let's assume we need to join and do an 'in' clause
-			if (path.getModel() instanceof SingularAttribute) {
-				return cb.equal(path, convertValue(environment, argument, argument.getValue()));
+			//this must be an object in case an enum is returned
+			Object value = convertValue(environment, argument, argument.getValue());
+			
+			if (value instanceof List) {
+				return path.in(value);
 			} else {
-				return path.in(convertValue(environment, argument, argument.getValue()));
+				return cb.equal(path, value);
 			}
     }
 
@@ -158,10 +160,20 @@ public class JpaDataFetcher implements DataFetcher {
             if (convertedValue != null && convertedValue instanceof UUID) { 
                 // Return real parameter for instance UUID even if the Value is a StringValue
                 return convertedValue;
-            } else {
-                // Return provided StringValue
-                return ((StringValue) value).getValue();
-            }
+            } else if (convertedValue != null && convertedValue instanceof List) {
+				List convertedValueList = (List) convertedValue;
+				
+				//TODO: this won't properly handle queries on multiple UUIDs
+				if (!convertedValueList.isEmpty()) {
+					convertedValue = convertedValueList.get(0);
+					if (convertedValue instanceof UUID) {
+						return convertedValue;
+					}
+				}
+			} 
+			
+			// Return provided StringValue
+			return ((StringValue) value).getValue();
         }
         else if (value instanceof VariableReference)
             return environment.getArguments().get(((VariableReference) value).getName());

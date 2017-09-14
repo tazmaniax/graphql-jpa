@@ -118,7 +118,7 @@ class StarwarsQueryExecutorTest extends Specification {
     def 'Query with parameter'() {
         given:
         def query = '''
-        query humanQuery($id: String!) {
+        query humanQuery($id: [String!]) {
             Human(id: $id) {
                 name
                 homePlanet
@@ -665,6 +665,63 @@ class StarwarsQueryExecutorTest extends Specification {
                 Droid: [
                         [ name: 'C-3PO', primaryFunction: 'Protocol', admirers:[[name: "Luke Skywalker"]]]
                 ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Multiple filter values at root'() {
+        given:
+        def query = '''
+        {
+            Human(name: ["Darth Vader", "Leia Organa", "Luke Skywalker"]) {
+                name(orderBy: ASC)
+                homePlanet
+            }
+        }
+        '''
+        def expected = [
+			Human:[
+				[ name: 'Darth Vader', homePlanet: "Tatooine"],
+				[ name: 'Leia Organa', homePlanet: "Alderaan"],
+				[ name: 'Luke Skywalker', homePlanet: "Tatooine"]
+			]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Multiple Nested filter values'() {
+        given:
+        def query = '''
+        {
+            Human {
+                name(orderBy: ASC)
+                friends(name: ["Luke Skywalker", "Leia Organa"]) {
+					name(orderBy: ASC)
+				}
+            }
+        }
+        '''
+		
+		//this returns all humans because it's an outer join and only joins on the selected friends identified above
+        def expected = [
+			Human: [
+				[name:'Darth Maul', friends:[]], 
+				[name:'Darth Vader', friends:[]], 
+				[name:'Han Solo', friends:[[name:'Leia Organa'], [name:'Luke Skywalker']]], 
+				[name:'Leia Organa', friends:[[name:'Luke Skywalker']]], 
+				[name:'Luke Skywalker', friends:[[name:'Leia Organa']]], 
+				[name:'Wilhuff Tarkin', friends:[]]
+			]
         ]
 
         when:
