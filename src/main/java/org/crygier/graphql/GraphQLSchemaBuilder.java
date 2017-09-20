@@ -143,6 +143,16 @@ public class GraphQLSchemaBuilder {
                     arguments.add(getArgument(it));
                 });
 			
+				//To do this, the id of the parent would have to be taken into account here so that it actually queries based upon the parent
+				//relationship.  This still retains the n+1 problem though
+				return GraphQLFieldDefinition.newFieldDefinition()
+						.name(attribute.getName())
+						.description(getSchemaDocumentation(attribute.getJavaMember()))
+						.type((GraphQLOutputType) type)
+						.dataFetcher(new JpaDataFetcher(entityManager, foreignType))
+						.argument(arguments)
+						.build();
+				
             } else if (attribute instanceof PluralAttribute) {
 								
 				//TODO: this is hacky, attempting to prevent "java.lang.ClassCastException: org.hibernate.jpa.internal.metamodel.BasicTypeImpl cannot be cast to javax.persistence.metamodel.EntityType"
