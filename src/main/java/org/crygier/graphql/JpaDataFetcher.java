@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import javax.persistence.ManyToMany;
 import javax.persistence.OneToMany;
+import javax.persistence.PersistenceUnitUtil;
 
 public class JpaDataFetcher implements DataFetcher {
 
@@ -28,7 +29,31 @@ public class JpaDataFetcher implements DataFetcher {
 
     @Override
     public Object get(DataFetchingEnvironment environment) {
-        return getQuery(environment, environment.getFields().iterator().next()).getResultList();
+		
+		Field field = environment.getFields().iterator().next();
+		
+		if (environment.getSource() != null) {
+			Object source = environment.getSource();
+			
+			PersistenceUnitUtil persistenceUnitUtil = entityManager.getEntityManagerFactory().getPersistenceUnitUtil();
+			
+			//this could cause inconsistent behavior in the debugger if the debugger retrieves the attributes
+			if (persistenceUnitUtil.isLoaded(source, field.getName())) {
+				 
+				Class clazz = source.getClass();
+				
+				try {
+					java.lang.reflect.Field property = clazz.getDeclaredField(field.getName());
+					property.setAccessible(true);
+					return property.get(source);
+					
+				} catch (NoSuchFieldException | IllegalAccessException exception) {
+					// this should be fixed, but we can retrieve the value anyway
+				}
+			}
+		}
+		
+        return getQuery(environment, field).getResultList();
     }
 
     protected TypedQuery getQuery(DataFetchingEnvironment environment, Field field) {
@@ -40,7 +65,7 @@ public class JpaDataFetcher implements DataFetcher {
         processOrderBy(field, root, query, cb);
 		
 		//recurse through the child fields
-		getQueryHelper(environment, field, cb, query, root, root);
+		getQueryHelper(environment, field, cb, query, root, root, true);
 
 		List<Predicate> predicates = new ArrayList<>();
 
@@ -65,7 +90,7 @@ public class JpaDataFetcher implements DataFetcher {
     }
 	
 	protected void getQueryHelper(DataFetchingEnvironment environment, Field field, 
-			CriteriaBuilder cb, CriteriaQuery<Object> query, From from, Path path) {
+			CriteriaBuilder cb, CriteriaQuery<Object> query, From from, Path path, boolean parentFetched) {
 		
 		// Loop through all of the fields being requested
         field.getSelectionSet().getSelections().forEach(selection -> {
@@ -85,6 +110,11 @@ public class JpaDataFetcher implements DataFetcher {
 						joinType = JoinType.valueOf(((EnumValue) joinTypeArgument.get().getValue()).getName());
 					}
 					
+					List<Argument> arguments = selectedField.getArguments().stream()
+								.filter(it -> (!"orderBy".equals(it.getName()) && !"joinType".equals(it.getName())))
+								.map(it -> new Argument(it.getName(), it.getValue()))
+								.collect(Collectors.toList());
+					
 					boolean fetched = false;
 					Join join = null;
 					
@@ -92,10 +122,14 @@ public class JpaDataFetcher implements DataFetcher {
                     if (fieldPath.getModel() instanceof SingularAttribute) {
                         SingularAttribute attribute = (SingularAttribute) fieldPath.getModel();
                         if (attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.MANY_TO_ONE || attribute.getPersistentAttributeType() == Attribute.PersistentAttributeType.ONE_TO_ONE) {
-                            //TODO: we can eagerly fetch TO_ONE associations assuming that the parent was also eagerly fetched
-							//Fetch fetch = from.fetch(selectedField.getName(), joinType);
-							//TODO: if we fetch, update the boolean
-							join = from.join(selectedField.getName(), joinType);
+                            //we can eagerly fetch TO_ONE associations assuming that the parent was also eagerly fetched
+							//hibernate doesn't allow fetches with 'with-clauses' so if there are arguments, we can't fetch
+							if (parentFetched && arguments.size() == 0) {
+								join = (Join) from.fetch(selectedField.getName(), joinType);
+								fetched = true;
+							} else {
+								join = from.join(selectedField.getName(), joinType);
+							}
 						}
 						
                     } else { //Otherwise, assume the foreign side is many
@@ -115,14 +149,12 @@ public class JpaDataFetcher implements DataFetcher {
 					if (join != null) {
 						final Join forLambda = (Join) join;
 						
-						getQueryHelper(environment, selectedField, cb, query, ((From)forLambda), ((Join) forLambda));
+						getQueryHelper(environment, selectedField, cb, query, ((From)forLambda), ((Join) forLambda), fetched);
 						
-						List<Predicate> joinPredicates = selectedField.getArguments().stream()
-							.filter(it -> (!"orderBy".equals(it.getName()) && !"joinType".equals(it.getName())))
-							.map(it -> new Argument(it.getName(), it.getValue()))
-							.collect(Collectors.toList())
-							.stream().map(it -> getPredicate(cb, ((Join) forLambda).get(it.getName()), environment, it)).collect(Collectors.toList());
-						
+						List<Predicate> joinPredicates = arguments.stream().map(
+								it -> getPredicate(cb, ((Join) forLambda).get(it.getName()), environment, it)).collect(Collectors.toList()
+							);
+												
 						// don't blow away an existing condition
 						if (forLambda.getOn() != null) {
 							joinPredicates.add(forLambda.getOn());
