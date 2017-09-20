@@ -30,6 +30,8 @@ public class JpaDataFetcher implements DataFetcher {
     @Override
     public Object get(DataFetchingEnvironment environment) {
 		
+		Object result = null;
+		
 		Field field = environment.getFields().iterator().next();
 		
 		if (environment.getSource() != null) {
@@ -39,21 +41,30 @@ public class JpaDataFetcher implements DataFetcher {
 			
 			//this could cause inconsistent behavior in the debugger if the debugger retrieves the attributes
 			if (persistenceUnitUtil.isLoaded(source, field.getName())) {
-				 
-				Class clazz = source.getClass();
-				
-				try {
-					java.lang.reflect.Field property = clazz.getDeclaredField(field.getName());
-					property.setAccessible(true);
-					return property.get(source);
-					
-				} catch (NoSuchFieldException | IllegalAccessException exception) {
-					// this should be fixed, but we can retrieve the value anyway
+				DataFetcher dataFetcher = new PropertyDataFetcher(field.getName());
+				result = dataFetcher.get(environment);
+			} else {
+				List resultList = getQuery(environment, field).getResultList();
+								
+				Member member = entityManager.getMetamodel().entity(environment.getSource().getClass()).getAttribute(field.getName()).getJavaMember();
+				java.lang.reflect.Field property = (java.lang.reflect.Field) member;
+
+				if (Collection.class.isAssignableFrom(property.getType())) {
+					result = resultList;
+				} else {
+					if (resultList.size() == 1) {
+						result = resultList.get(0);
+					} else {
+						//TODO: this should be an error.
+					}
 				}
 			}
+			
+		} else {
+			result = getQuery(environment, field).getResultList();
 		}
 		
-        return getQuery(environment, field).getResultList();
+        return result;
     }
 
     protected TypedQuery getQuery(DataFetchingEnvironment environment, Field field) {
