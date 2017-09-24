@@ -1,13 +1,13 @@
 package org.crygier.graphql
 
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.SpringApplicationContextLoader
+import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Configuration
 import org.springframework.test.context.ContextConfiguration
 import spock.lang.Specification
 
 @Configuration
-@ContextConfiguration(loader = SpringApplicationContextLoader, classes = TestApplication)
+@SpringBootTest(classes = TestApplication)
 class ThingQueryExecutorTest extends Specification {
 
     @Autowired
@@ -62,7 +62,7 @@ class ThingQueryExecutorTest extends Specification {
     def 'Query with parameter'() {
         given:
         def query = '''
-       query ThingByIdQuery($id: UUID) {
+       query ThingByIdQuery($id: [UUID]) {
           Thing(id: $id) {
             id
             type

@@ -2,7 +2,7 @@ package org.crygier.graphql
 
 import org.crygier.graphql.model.starwars.Episode
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.SpringApplicationContextLoader
+import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Configuration
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.transaction.annotation.Transactional
@@ -10,8 +10,8 @@ import spock.lang.Specification
 
 import javax.persistence.EntityManager
 
-@Configuration
-@ContextConfiguration(loader = SpringApplicationContextLoader, classes = TestApplication)
+//@Configuration
+@SpringBootTest(classes = TestApplication)
 class StarwarsQueryExecutorTest extends Specification {
 
     @Autowired
@@ -104,7 +104,7 @@ class StarwarsQueryExecutorTest extends Specification {
         '''
         def expected = [
                 Human: [
-                        [name: 'Luke Skywalker', homePlanet: 'Tatooine', friends: [[name: 'Han Solo'], [name: 'Leia Organa'], [name: 'C-3PO'], [name: 'R2-D2']]]
+                        [name: 'Luke Skywalker', homePlanet: 'Tatooine', friends: [[name: 'C-3PO'], [name: 'Leia Organa'], [name: 'Han Solo'], [name: 'R2-D2']]]
                 ]
         ]
 
@@ -118,7 +118,7 @@ class StarwarsQueryExecutorTest extends Specification {
     def 'Query with parameter'() {
         given:
         def query = '''
-        query humanQuery($id: String!) {
+        query humanQuery($id: [String!]) {
             Human(id: $id) {
                 name
                 homePlanet
@@ -219,9 +219,9 @@ class StarwarsQueryExecutorTest extends Specification {
                         [
                                 name:'R2-D2',
                                 friends:[
-                                        [ name:'Luke Skywalker', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[['name:Han Solo'], [name:'Leia Organa'], [name:'C-3PO'], [name:'R2-D2']]],
-                                        [ name:'Han Solo', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'Luke Skywalker'], [name:'Leia Organa'], [name:'R2-D2']]],
-                                        [ name:'Leia Organa', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'Luke Skywalker'], [name:'Han Solo'], [name:'C-3PO'], [name:'R2-D2']]]
+                                        [ name:'Luke Skywalker', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'C-3PO'], [name:'Leia Organa'], ['name:Han Solo'], [name:'R2-D2']]],
+                                        [ name:'Han Solo', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'Leia Organa'], [name:'Luke Skywalker'], [name:'R2-D2']]],
+                                        [ name:'Leia Organa', appearsIn:['A_NEW_HOPE', 'EMPIRE_STRIKES_BACK', 'RETURN_OF_THE_JEDI', 'THE_FORCE_AWAKENS'], friends:[[name:'C-3PO'], [name:'Luke Skywalker'], [name:'Han Solo'], [name:'R2-D2']]]
                                 ]
                         ]
                 ]
@@ -250,7 +250,7 @@ class StarwarsQueryExecutorTest extends Specification {
         def expected = [
                 HumanConnection: [
                         totalPages: 3,
-                        totalElements: 5,
+                        totalElements: 6,
                         content: [
                                 [ name: 'Darth Vader' ],
                                 [ name: 'Luke Skywalker' ]
@@ -279,7 +279,7 @@ class StarwarsQueryExecutorTest extends Specification {
         def expected = [
                 HumanConnection: [
                         totalPages: 3,
-                        totalElements: 5
+                        totalElements: 6
                 ]
         ]
 
@@ -306,8 +306,68 @@ class StarwarsQueryExecutorTest extends Specification {
                     [ name: 'Luke Skywalker', homePlanet: "Tatooine"],
                     [ name: 'Leia Organa', homePlanet: "Alderaan"],
                     [ name: 'Han Solo', homePlanet: null],
-                    [ name: 'Darth Vader', homePlanet: "Tatooine"]
+                    [ name: 'Darth Vader', homePlanet: "Tatooine"],
+                    [ name: 'Darth Maul', homePlanet: null]
                 ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+
+    def 'Ordering Nested Fields'() {
+        given:
+        def query = '''
+        {
+            Human {
+                name(orderBy: ASC)
+                homePlanet
+				friends {
+					name(orderBy: DESC)
+	            }
+			}
+        }
+        '''
+        def expected = [
+			Human: [
+				[ name:'Darth Maul', homePlanet:null, friends:[] ], 
+				[ name:'Darth Vader', homePlanet:'Tatooine', friends:[[name:'Wilhuff Tarkin']] ], 
+				[ name:'Han Solo', homePlanet:null, friends:[[name:'R2-D2'], [name:'Luke Skywalker'], [name:'Leia Organa']] ], 
+				[ name:'Leia Organa', homePlanet:'Alderaan', friends:[[name:'R2-D2'], [name:'Luke Skywalker'], [name:'Han Solo'], [name:'C-3PO']] ], 
+				[ name:'Luke Skywalker', homePlanet:'Tatooine', friends:[[name:'R2-D2'], [name:'Leia Organa'], [name:'Han Solo'], [name:'C-3PO']] ], 
+				[ name:'Wilhuff Tarkin', homePlanet:null, friends:[[name:'Darth Vader']] ]
+			]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+
+    def 'Ordering Fields on Same Object'() {
+        given:
+        def query = '''
+        {
+            Human {
+                homePlanet(orderBy: DESC)
+                name(orderBy: ASC)
+			}
+        }
+        '''
+        def expected = [
+			Human: [
+				[ homePlanet:'Tatooine', name:'Darth Vader' ], 
+				[ homePlanet:'Tatooine', name:'Luke Skywalker' ], 
+				[ homePlanet:'Alderaan', name:'Leia Organa'  ], 
+				[ homePlanet:null, name:'Darth Maul' ], 
+				[ homePlanet:null, name:'Han Solo' ], 
+				[ homePlanet:null, name:'Wilhuff Tarkin' ]
+			]
         ]
 
         when:
@@ -320,6 +380,9 @@ class StarwarsQueryExecutorTest extends Specification {
     def 'Query by Collection of Enums at root level'() {
         // Semi-proper JPA: select distinct h from Human h join h.appearsIn ai where ai in (:episodes)
 
+		//This test raises an inconsistency, for other "associations", the filter will be on the appearsIn field itself
+		//Additionally, taking the nested filtering into account, only the specific Episode would be returned in appearsIn, not all of them
+		
         given:
         def query = '''
         {
@@ -331,9 +394,9 @@ class StarwarsQueryExecutorTest extends Specification {
         '''
         def expected = [
                 Human: [
-                    [ name: 'Leia Organa', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS] ],
                     [ name: 'Luke Skywalker', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS]],
-                    [ name: 'Han Solo', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS] ]
+                    [ name: 'Han Solo', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS] ],
+                    [ name: 'Leia Organa', appearsIn: [Episode.A_NEW_HOPE, Episode.EMPIRE_STRIKES_BACK, Episode.RETURN_OF_THE_JEDI, Episode.THE_FORCE_AWAKENS] ],
                 ]
         ]
 
@@ -346,22 +409,28 @@ class StarwarsQueryExecutorTest extends Specification {
 
     def 'Query by restricting sub-object'() {
         given:
+		
+		//since gender is mapped as an association, the (new) default behavior of outer joins will cause all humans to be
+		//returned regardless of their gender.  To only return the Men, we have to make gender an inner join.
+		
         def query = '''
         {
           Human {
             name
-            gender(code: "Male") {
+            gender(joinType: INNER, code: "Male") {
               description
             }
           }
         }
         '''
+		//the resulting order of this query is different based upon join vs fetch
         def expected = [
                 Human: [
                         [ name: 'Darth Vader', gender: [ description: "Male" ] ],
-                        [ name: 'Wilhuff Tarkin', gender: [ description: "Male" ] ],
-                        [ name: 'Han Solo', gender: [ description: "Male" ] ],
+                        [ name: 'Darth Maul', gender: [ description: "Male" ] ],
                         [ name: 'Luke Skywalker', gender: [ description: "Male" ]],
+                        [ name: 'Han Solo', gender: [ description: "Male" ] ],
+                        [ name: 'Wilhuff Tarkin', gender: [ description: "Male" ] ],
                 ]
         ]
 
@@ -424,6 +493,245 @@ class StarwarsQueryExecutorTest extends Specification {
         then:
         result == expected;
     }
+
+    def 'ManyToMany test filter'() {
+        given:
+        def query = '''
+        {
+            Human(name: "Luke Skywalker") {
+                name
+                homePlanet
+                friends(name: "Han Solo") {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human: [
+                        [name: 'Luke Skywalker', homePlanet: 'Tatooine', friends: [[name: 'Han Solo']]]
+                ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Outer Join Nested Objects by Default'() {
+        given:
+        def query = '''
+        {
+            Human(name: "Darth Maul") {
+                name
+                homePlanet
+                friends {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human: [
+                        [name: 'Darth Maul', homePlanet: null, friends: []]
+                ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Inner Join Nested Objects'() {
+        given:
+        def query = '''
+        {
+            Human(name: "Darth Maul") {
+                name
+                homePlanet
+                friends (joinType: INNER)  {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human: []
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Outer Join Nested Objects with Filters'() {
+		//the idea is that since friends is a left join, the filter criteria should be applied to the join, not the where
+		
+        given:
+        def query = '''
+        {
+            Human(name: "Darth Maul") {
+                name
+                homePlanet
+                friends(name: "Luke Skywalker") {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human: [
+                        [name: 'Darth Maul', homePlanet: null, friends: []]
+                ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Inner Join Nested Objects with Filters'() {
+        given:
+        def query = '''
+        {
+            Human(name: "Darth Maul") {
+                name
+                homePlanet
+                friends(joinType: INNER, name: "Luke Skywalker") {
+                    name
+                }
+            }
+        }
+        '''
+        def expected = [
+                Human:[]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+
+    def 'OneToMany test'() {
+        given:
+        def query = '''
+        {
+          Droid(name: "C-3PO") {
+            name
+            primaryFunction
+			admirers {
+				name
+			}
+		  }
+        }
+        '''
+        def expected = [
+                Droid: [
+                        [ name: 'C-3PO', primaryFunction: 'Protocol', admirers:[[name: "Luke Skywalker"], [name:"Leia Organa"]]]
+                ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+
+    def 'OneToMany test filter'() {
+        given:
+        def query = '''
+        {
+          Droid(name: "C-3PO") {
+            name
+            primaryFunction
+			admirers(homePlanet: "Tatooine") {
+				name
+			}
+		  }
+        }
+        '''
+        def expected = [
+                Droid: [
+                        [ name: 'C-3PO', primaryFunction: 'Protocol', admirers:[[name: "Luke Skywalker"]]]
+                ]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Multiple filter values at root'() {
+        given:
+        def query = '''
+        {
+            Human(name: ["Darth Vader", "Leia Organa", "Luke Skywalker"]) {
+                name(orderBy: ASC)
+                homePlanet
+            }
+        }
+        '''
+        def expected = [
+			Human:[
+				[ name: 'Darth Vader', homePlanet: "Tatooine"],
+				[ name: 'Leia Organa', homePlanet: "Alderaan"],
+				[ name: 'Luke Skywalker', homePlanet: "Tatooine"]
+			]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	def 'Multiple Nested filter values'() {
+        given:
+        def query = '''
+        {
+            Human {
+                name(orderBy: ASC)
+                friends(name: ["Luke Skywalker", "Leia Organa"]) {
+					name(orderBy: ASC)
+				}
+            }
+        }
+        '''
+		
+		//this returns all humans because it's an outer join and only joins on the selected friends identified above
+        def expected = [
+			Human: [
+				[name:'Darth Maul', friends:[]], 
+				[name:'Darth Vader', friends:[]], 
+				[name:'Han Solo', friends:[[name:'Leia Organa'], [name:'Luke Skywalker']]], 
+				[name:'Leia Organa', friends:[[name:'Luke Skywalker']]], 
+				[name:'Luke Skywalker', friends:[[name:'Leia Organa']]], 
+				[name:'Wilhuff Tarkin', friends:[]]
+			]
+        ]
+
+        when:
+        def result = executor.execute(query).data
+
+        then:
+        result == expected
+    }
+	
+	//TODO: Add tests to assert nested fetching
 
     @Autowired
     private EntityManager em;
