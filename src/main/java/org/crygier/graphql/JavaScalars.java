@@ -1,13 +1,5 @@
 package org.crygier.graphql;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import graphql.language.IntValue;
-import graphql.language.StringValue;
-import graphql.schema.Coercing;
-import graphql.schema.GraphQLScalarType;
-
 import java.math.BigInteger;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -18,6 +10,14 @@ import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.TimeZone;
 import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import graphql.language.IntValue;
+import graphql.language.StringValue;
+import graphql.schema.Coercing;
+import graphql.schema.GraphQLScalarType;
 
 public class JavaScalars {
     static final Logger log = LoggerFactory.getLogger(JavaScalars.class);

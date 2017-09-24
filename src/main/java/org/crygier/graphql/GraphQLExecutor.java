@@ -1,11 +1,11 @@
 package org.crygier.graphql;
 
-import javax.transaction.Transactional;
 import java.util.Map;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.persistence.EntityManager;
+import javax.transaction.Transactional;
 
 import graphql.ExecutionResult;
 import graphql.GraphQL;
@@ -17,6 +17,7 @@ public class GraphQLExecutor {
     private GraphQL graphQL;
 
     protected GraphQLExecutor() {}
+    
     public GraphQLExecutor(EntityManager entityManager) {
         this.entityManager = entityManager;
         createGraphQL();
@@ -35,8 +36,8 @@ public class GraphQLExecutor {
     }
 
     @Transactional
-    public ExecutionResult execute(String query, Map<String, Object> arguments) {
-    	return graphQL.execute(query, entityManager, arguments);
+	    public ExecutionResult execute(String query, Map<String, Object> arguments) {
+	    	return graphQL.execute(query, entityManager, arguments);
     }
 
 }

@@ -15,8 +15,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.persistence.criteria.JoinType;
 
+import javax.persistence.criteria.JoinType;
 import javax.persistence.metamodel.Attribute;
 import javax.persistence.metamodel.EntityType;
 import javax.persistence.metamodel.Metamodel;
@@ -150,7 +150,7 @@ public class GraphQLSchemaBuilder {
 						.name(attribute.getName())
 						.description(getSchemaDocumentation(attribute.getJavaMember()))
 						.type((GraphQLOutputType) type)
-						.dataFetcher(new JpaDataFetcher(entityManager, foreignType))
+						.dataFetcher(new JpaDataFetcher(foreignType))
 						.argument(arguments)
 						.build();
 				
@@ -171,7 +171,7 @@ public class GraphQLSchemaBuilder {
 							.name(attribute.getName())
 							.description(getSchemaDocumentation(attribute.getJavaMember()))
 							.type((GraphQLOutputType) type)
-							.dataFetcher(new JpaDataFetcher(entityManager, foreignType))
+							.dataFetcher(new JpaDataFetcher(foreignType))
 							.argument(arguments)
 							.build();
 					

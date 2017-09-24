@@ -56,7 +56,7 @@ public class ExtendedJpaDataFetcher extends JpaDataFetcher {
     }
 
     private TypedQuery<Long> getCountQuery(DataFetchingEnvironment environment, Field field) {
-    	EntityManager entityManager = ((EntityManager)environment.getContext());
+    		EntityManager entityManager = ((EntityManager)environment.getContext());
     	
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> query = cb.createQuery(Long.class);
@@ -98,6 +98,4 @@ public class ExtendedJpaDataFetcher extends JpaDataFetcher {
             this.size = size;
         }
     }
-
-
 }
