@@ -18,12 +18,9 @@ import javax.persistence.OneToMany;
 import javax.persistence.PersistenceUnitUtil;
 
 public class JpaDataFetcher implements DataFetcher {
-
-    protected EntityManager entityManager;
     protected EntityType<?> entityType;
 
-    public JpaDataFetcher(EntityManager entityManager, EntityType<?> entityType) {
-        this.entityManager = entityManager;
+    public JpaDataFetcher(EntityType<?> entityType) {
         this.entityType = entityType;
     }
 
@@ -68,6 +65,8 @@ public class JpaDataFetcher implements DataFetcher {
     }
 
     protected TypedQuery getQuery(DataFetchingEnvironment environment, Field field) {
+    	EntityManager entityManager = ((EntityManager)environment.getContext());
+    	
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Object> query = cb.createQuery((Class) entityType.getJavaType());
         Root root = query.from(entityType);
@@ -247,13 +246,14 @@ public class JpaDataFetcher implements DataFetcher {
     }
 
     private Attribute getAttribute(DataFetchingEnvironment environment, Argument argument) {
+    	EntityManager entityManager = ((EntityManager)environment.getContext());
         GraphQLObjectType objectType = getObjectType(environment, argument);
-        EntityType entityType = getEntityType(objectType);
+        EntityType entityType = getEntityType(entityManager, objectType);
 
         return entityType.getAttribute(argument.getName());
     }
 
-    private EntityType getEntityType(GraphQLObjectType objectType) {
+    private EntityType getEntityType(EntityManager entityManager, GraphQLObjectType objectType) {
         return entityManager.getMetamodel().getEntities().stream().filter(it -> it.getName().equals(objectType.getName())).findFirst().get();
     }
 
